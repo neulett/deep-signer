@@ -5,7 +5,7 @@ import numpy as np
 from concurrent.futures import ThreadPoolExecutor
 from tqdm.auto import tqdm
 
-class KeypointExtractor:
+class Models:
     def __init__(self, source_path, dest_path):
         self.source_path = source_path
         self.dest_path = dest_path
