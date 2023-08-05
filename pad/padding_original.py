@@ -57,7 +57,7 @@ def process_video(input_path, output_path, max_frames, file_name, target_width, 
     cap.release()
     del output_cap
 
-def pad_len_threaded(input_path, output_path, max_frames, target_width, target_height):
+def working_threads(input_path, output_path, max_frames, target_width, target_height):
     
     threads = []
     for file_name in tqdm(os.listdir(input_path), colour='blue'):
@@ -68,4 +68,4 @@ def pad_len_threaded(input_path, output_path, max_frames, target_width, target_h
     for t in threads:
         t.join()
 max_frames = get_MaxFrame()
-pad_len_threaded(path, dest_path, max_frames, target_width, target_height)
+working_threads(path, dest_path, max_frames, target_width, target_height)
