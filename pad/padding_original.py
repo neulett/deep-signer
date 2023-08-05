@@ -2,9 +2,9 @@ import os
 import cv2
 import shutil
 import numpy as np
-import threading
 import mediapipe as mp
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 path = input("Source path: ")
 dest_path = input("Dest path: ")
@@ -58,14 +58,16 @@ def process_video(input_path, output_path, max_frames, file_name, target_width, 
     del output_cap
 
 def working_threads(input_path, output_path, max_frames, target_width, target_height):
+    executor = ThreadPoolExecutor(max_workers=4)
+    futures =[]
     
-    threads = []
     for file_name in tqdm(os.listdir(input_path), colour='blue'):
-        t = threading.Thread(target=process_video, args=(input_path, output_path, max_frames, file_name, target_width, target_height))
-        threads.append(t)
-        t.start()
+        future = executor.submit(process_video, input_path, output_path, max_frames, file_name, target_width, target_height)
+        futures.append(future)
 
-    for t in threads:
-        t.join()
-max_frames = get_MaxFrame()
-working_threads(path, dest_path, max_frames, target_width, target_height)
+    for future in tqdm(futures, colour='blue'):
+        future.result()
+
+    executor.shutdown()
+
+working_threads()
