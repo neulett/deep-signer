@@ -27,7 +27,7 @@ def extract_keypoints(filename, dest_path):
                     pose_landmarks = pose_results.pose_landmarks
                     pose_keypoints = []
                     for landmark in pose_landmarks.landmark:
-                        pose_keypoints.append([landmark.x, landmark.y, landmark.z])
+                        pose_keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
                     pose_keypoints_list.append(pose_keypoints)
 
             np.save(f'{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_list)
