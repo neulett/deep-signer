@@ -29,10 +29,8 @@ def extract_keypoints(filename, dest_path):
                     for landmark in pose_landmarks.landmark:
                         pose_keypoints.append([landmark.x, landmark.y, landmark.z])
                     pose_keypoints_list.append(pose_keypoints)
-
-            pose_keypoints_array = np.array(pose_keypoints_list)
             
-            np.save(f'{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_array)
+            np.save(f'{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_list)
 
         cap.release()
 
@@ -40,7 +38,7 @@ def working_threads():
     executor = ThreadPoolExecutor(max_workers=4)
     futures = []
 
-    for filename in tqdm(os.listdidr(path), colour='green'):
+    for filename in tqdm(os.listdir(path), colour='green'):
         future = executor.submit(extract_keypoints, filename, output_path)
         futures.append(future)
 
