@@ -4,6 +4,8 @@ import threading
 import numpy as np
 import mediapipe as mp
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
+
 
 path = input("Source Path :")   # define paths
 output_path = input("Dest Path :")
@@ -29,22 +31,24 @@ def extract_keypoints(filename, dest_path):
                     pose_keypoints_list.append(pose_keypoints)
 
             pose_keypoints_array = np.array(pose_keypoints_list)
-            np.save(f'{dest_path}\{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_array)
+            
+            np.save(f'{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_array)
 
         cap.release()
 
 def working_threads():
-    threads = []
+    executor = ThreadPoolExecutor(max_workers=4)
+    futures = []
 
-    for filename in tqdm(os.listdir(path), colour='green'):
-        thread = threading.Thread(target=extract_keypoints, args=(filename, output_path))
-        threads.append(thread)
-        thread.start()
+    for filename in tqdm(os.listdidr(path), colour='green'):
+        future = executor.submit(extract_keypoints, filename, output_path)
+        futures.append(future)
 
-    print("file listup finish. Threading Start...")
+    print("File listup finish. Threading Start...")
 
-    for thread in tqdm(threads, colour='blue'):
-        thread.join()
+    for future in tqdm(futures, colour='blue'):
+        future.result()
 
+    executor.shutdown()
 
 working_threads()
