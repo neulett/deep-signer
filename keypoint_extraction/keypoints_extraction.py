@@ -1,17 +1,17 @@
 import os
 import cv2
-import threading
-import numpy as np
 import mediapipe as mp
-from tqdm import tqdm
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
+from tqdm.auto import tqdm
 
+class KeypointExtractor:
+    def __init__(self, source_path, dest_path):
+        self.source_path = source_path
+        self.dest_path = dest_path
 
-path = input("Source Path :")   # define paths
-output_path = input("Dest Path :")
-
-def extract_keypoints(filename, dest_path):
-        mp_pose = mp.solutions.pose # define mediapipe pose model
+    def extract_pose_keypoints(self, filename, dest_path):
+        mp_pose = mp.solutions.pose
         cap = cv2.VideoCapture(filename)
 
         with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
@@ -22,32 +22,94 @@ def extract_keypoints(filename, dest_path):
                 if not opened:
                     break
 
-                pose_results = pose.process(image)
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                pose_results = pose.process(image_rgb)
+
                 if pose_results.pose_landmarks:
-                    pose_landmarks = pose_results.pose_landmarks
                     pose_keypoints = []
-                    for landmark in pose_landmarks.landmark:
+                    for landmark in pose_results.pose_landmarks.landmark:
                         pose_keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
                     pose_keypoints_list.append(pose_keypoints)
 
-            np.save(f'{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_list)
+            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", pose_keypoints_list)
 
         cap.release()
 
-def working_threads():
-    executor = ThreadPoolExecutor(max_workers=4)
-    futures = []
+    def extract_holistic_keypoints(self, filename, dest_path):
+        mp_holistic = mp.solutions.holistic
+        cap = cv2.VideoCapture(filename)
 
-    for filename in tqdm(os.listdir(path), colour='green'):
-        full_filename = os.path.join(path, filename)
-        future = executor.submit(extract_keypoints, full_filename, output_path)
-        futures.append(future)
+        with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
 
-    print("file listup finish.. threads start..")
+            holistic_keypoints_list = []
 
-    for future in tqdm(futures, colour='blue'):
-        future.result()
+            while True:
+                opened, image = cap.read()
+                if not opened:
+                    break
 
-    executor.shutdown()
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                holistic_results = holistic.process(image_rgb)
 
-working_threads()
+                if (holistic_results.face_landmarks or
+                    holistic_results.left_hand_landmarks or
+                    holistic_results.right_hand_landmarks or
+                    holistic_results.pose_landmarks):
+
+                    holistic_keypoints = {'face': [],
+                                          'left_hand': [],
+                                          'right_hand': [],
+                                          'pose': []}
+
+                    if holistic_results.pose_landmarks:
+                        for landmark in holistic_results.pose_landmarks.landmark:
+                            holistic_keypoints['pose'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
+
+                    if holistic_results.face_landmarks:
+                        for landmark in holistic_results.face_landmarks.landmark:
+                            holistic_keypoints['face'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
+
+                    if holistic_results.left_hand_landmarks:
+                        for landmark in holistic_results.left_hand_landmarks.landmark:
+                            holistic_keypoints['left_hand'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
+
+                    if holistic_results.right_hand_landmarks:
+                        for landmark in holistic_results.right_hand_landmarks.landmark:
+                            holistic_keypoints['right_hand'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
+
+                    holistic_keypoints_list.append(holistic_keypoints)
+
+            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", holistic_keypoints_list)
+
+        cap.release()
+
+    def working_threads(self, model="pose"):
+        executor = ThreadPoolExecutor(max_workers=4)
+        futures = []
+
+        if model == "pose":
+            extract_method = self.extract_pose_keypoints
+        elif model == "holistic":
+            extract_method = self.extract_holistic_keypoints
+        else:
+            raise ValueError("Invalid model")
+
+        for filename in tqdm(os.listdir(self.source_path), total=len(os.listdir(self.source_path))):
+            full_filename = os.path.join(self.source_path, filename)
+            future = executor.submit(extract_method, full_filename, self.dest_path)
+            futures.append(future)
+
+        print(f"{model} - File listup finish.. threads start..")
+
+        for future in tqdm(futures, total=len(futures)):
+            future.result()
+
+        executor.shutdown()
