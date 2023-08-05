@@ -6,8 +6,10 @@ import threading
 import mediapipe as mp
 from tqdm import tqdm
 
-path = 'C:/Users/ILIXYENILXY/Desktop/Deep-_Signer/dataset/0001~3000(영상)/'
-dest_path = './padded_source/'
+path = input("Source path: ")
+dest_path = input("Dest path: ")
+target_width = int(input("target width: "))
+target_height = int(input("target height: "))
 
 def get_MaxFrame():
     max_frames = 0
@@ -24,11 +26,11 @@ def get_MaxFrame():
             max_frames = frames
             max_filename = file_name
     print(f'filename: {max_filename}\nlength: {max_frames}')
-    print(f'FPS: {fps}\nHeight: {height}\nWidth {width}')
+    print(f'FPS: {fps}\nHeight: {height}\nWidth: {width}')
 
     return max_frames
 
-def process_video(input_path, output_path, max_frames, file_name):
+def process_video(input_path, output_path, max_frames, file_name, target_width, target_height):
     file_path = os.path.join(input_path, file_name)
     cap = cv2.VideoCapture(file_path)
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -41,29 +43,29 @@ def process_video(input_path, output_path, max_frames, file_name):
         shutil.copyfile(file_path, output_file_path)
     else:
         output_file_path = os.path.join(output_path, file_name)
-        output_cap = cv2.VideoWriter(output_file_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (frame_width, frame_height))
+        output_cap = cv2.VideoWriter(output_file_path, cv2.VideoWriter_fourcc(*"mp4v"), fps, (target_width, target_height))
 
         for _ in range(max_frames):
             ret, frame = cap.read()
             if not ret:
-                output_cap.write(frame)
-            else:
-                output_cap.write(frame)
+                break
+            resized_frame = cv2.resize(frame, (target_width, target_height))
+            output_cap.write(resized_frame)
+
         output_cap.release()
 
     cap.release()
-
     del output_cap
 
-def pad_len_threaded(input_path, output_path, max_frames):
+def pad_len_threaded(input_path, output_path, max_frames, target_width, target_height):
+    
     threads = []
     for file_name in tqdm(os.listdir(input_path), colour='blue'):
-        t = threading.Thread(target=process_video, args=(input_path, output_path, max_frames, file_name))
+        t = threading.Thread(target=process_video, args=(input_path, output_path, max_frames, file_name, target_width, target_height))
         threads.append(t)
         t.start()
 
     for t in threads:
         t.join()
-
 max_frames = get_MaxFrame()
-pad_len_threaded(path, dest_path, max_frames)
+pad_len_threaded(path, dest_path, max_frames, target_width, target_height)

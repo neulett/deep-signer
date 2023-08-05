@@ -5,15 +5,12 @@ import numpy as np
 import mediapipe as mp
 from tqdm import tqdm
 
-path = '../pad/padded_source/'
-output_path = '../keypoints/keypoints_save/'
+path = input("Source Path :")   # define paths
+output_path = input("Dest Path :")
 
-def extract_keypoints(path):
-    for file_name in tqdm(os.listdir(path), colour='green'):
-        file_path = os.path.join(path, file_name)
-
+def extract_keypoints(filename, dest_path):
         mp_pose = mp.solutions.pose # define mediapipe pose model
-        cap = cv2.VideoCapture(file_path)
+        cap = cv2.VideoCapture(filename)
 
         with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
             pose_keypoints_list = []
@@ -32,20 +29,22 @@ def extract_keypoints(path):
                     pose_keypoints_list.append(pose_keypoints)
 
             pose_keypoints_array = np.array(pose_keypoints_list)
-            np.save(f'./keypoints_save/{file_name[0:18]}.npy', pose_keypoints_array)
+            np.save(f'{dest_path}\{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_array)
 
         cap.release()
 
-def processing_with_threads(path):
+def working_threads():
     threads = []
 
-    for file_name in tqdm(os.listdir(path)[:4], colour='green'):
-        file_path = os.path.join(path, file_name)
-        thread = threading.Thread(target=extract_keypoints, args=(file_path,))
+    for filename in tqdm(os.listdir(path), colour='green'):
+        thread = threading.Thread(target=extract_keypoints, args=(filename, output_path))
         threads.append(thread)
         thread.start()
 
-    for thread in threads:
+    print("file listup finish. Threading Start...")
+
+    for thread in tqdm(threads, colour='blue'):
         thread.join()
 
-processing_with_threads(path)
+
+working_threads()
