@@ -29,7 +29,7 @@ def extract_keypoints(filename, dest_path):
                     for landmark in pose_landmarks.landmark:
                         pose_keypoints.append([landmark.x, landmark.y, landmark.z])
                     pose_keypoints_list.append(pose_keypoints)
-            
+
             np.save(f'{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_p.npy', pose_keypoints_list)
 
         cap.release()
@@ -39,10 +39,11 @@ def working_threads():
     futures = []
 
     for filename in tqdm(os.listdir(path), colour='green'):
-        future = executor.submit(extract_keypoints, filename, output_path)
+        full_filename = os.path.join(path, filename)
+        future = executor.submit(extract_keypoints, full_filename, output_path)
         futures.append(future)
 
-    print("File listup finish. Threading Start...")
+    print("file listup finish.. threads start..")
 
     for future in tqdm(futures, colour='blue'):
         future.result()
