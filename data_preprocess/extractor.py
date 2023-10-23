@@ -3,8 +3,9 @@ import cv2
 import argparse
 import numpy as np
 import mediapipe as mp
-from concurrent.futures import ThreadPoolExecutor
+
 from tqdm.auto import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 def extract_pose_keypoints(filename, dest_path):
     mp_pose = mp.solutions.pose
@@ -80,7 +81,7 @@ def extract_holistic_keypoints(filename, dest_path):
     cap.release()
 
 def working_threads(SELECT_MODEL):
-    executor = ThreadPoolExecutor(max_workers=4)
+    executor = ThreadPoolExecutor(WORKERS)
     futures = []
 
     if SELECT_MODEL == "pose":
@@ -99,18 +100,23 @@ def working_threads(SELECT_MODEL):
 
     for future in tqdm(futures, total=len(futures)):
         future.result()
+
     executor.shutdown()
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-m', '--model', type=str, required=True, help='select feature model')
-parser.add_argument('-srce', '--source_path', type=str, required=True, help='source path')
-parser.add_argument('-dest', '--dest_path', type=str, required=True, help='dest path')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
 
-args = parser.parse_args()
+    parser.add_argument('-m', '--model', type=str, required=True, help='select feature model')
+    parser.add_argument('-srce', '--source_path', type=str, required=True, help='source path')
+    parser.add_argument('-dest', '--dest_path', type=str, required=True, help='dest path')
+    parser.add_argument('-workers', '--workers', type=int, default=4, help='working threads')
 
-SELECT_MODEL = args.model
-SOURCE_PATH = args.source_path
-DEST_PATH = args.dest_path
+    args = parser.parse_args()
 
-working_threads(SELECT_MODEL)
+    SELECT_MODEL = args.model
+    SOURCE_PATH = args.source_path
+    DEST_PATH = args.dest_path
+    WORKERS = args.workers
+
+    working_threads(SELECT_MODEL)
