@@ -1,122 +1,115 @@
 import os
 import cv2
-import argparse
-import numpy as np
 import mediapipe as mp
-
-from tqdm.auto import tqdm
+import numpy as np
 from concurrent.futures import ThreadPoolExecutor
+from tqdm.auto import tqdm
 
-def extract_pose_keypoints(filename, dest_path):
-    mp_pose = mp.solutions.pose
-    cap = cv2.VideoCapture(filename)
+class Models:
+    def __init__(self, source_path, dest_path):
+        self.source_path = source_path
+        self.dest_path = dest_path
 
-    with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-        pose_keypoints_list = []
+    def extract_pose_keypoints(self, filename, dest_path):
+        mp_pose = mp.solutions.pose
+        cap = cv2.VideoCapture(filename)
 
-        while True:
-            opened, image = cap.read()
-            if not opened:
-                break
+        with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+            pose_keypoints_list = []
 
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            pose_results = pose.process(image_rgb)
+            while True:
+                opened, image = cap.read()
+                if not opened:
+                    break
 
-            if pose_results.pose_landmarks:
-                pose_keypoints = []
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                pose_results = pose.process(image_rgb)
 
-                for landmark in pose_results.pose_landmarks.landmark:
-                    pose_keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
-                pose_keypoints_list.append(pose_keypoints)
-        np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", pose_keypoints_list)
-    cap.release()
+                if pose_results.pose_landmarks:
+                    pose_keypoints = []
+                    for landmark in pose_results.pose_landmarks.landmark:
+                        pose_keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
+                    pose_keypoints_list.append(pose_keypoints)
 
-def extract_holistic_keypoints(filename, dest_path):
-    mp_holistic = mp.solutions.holistic
-    cap = cv2.VideoCapture(filename)
+            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", pose_keypoints_list)
 
-    with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
-        holistic_keypoints_list = []
+        cap.release()
 
-        while True:
-            opened, image = cap.read()
-            if not opened:
-                break
+    def extract_holistic_keypoints(self, filename, dest_path):
+        mp_holistic = mp.solutions.holistic
+        cap = cv2.VideoCapture(filename)
 
-            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            holistic_results = holistic.process(image_rgb)
+        with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
 
-            if (holistic_results.face_landmarks or
-                holistic_results.left_hand_landmarks or
-                holistic_results.right_hand_landmarks or
-                holistic_results.pose_landmarks):
-                holistic_keypoints = {'face': [],
-                                      'left_hand': [],
-                                      'right_hand': [],
-                                      'pose': []}
-                if holistic_results.pose_landmarks:
-                    for landmark in holistic_results.pose_landmarks.landmark:
-                        holistic_keypoints['pose'].append(
-                            [landmark.x, landmark.y, landmark.z, landmark.visibility]
-                        )
-                if holistic_results.face_landmarks:
-                    for landmark in holistic_results.face_landmarks.landmark:
-                        holistic_keypoints['face'].append(
-                            [landmark.x, landmark.y, landmark.z, landmark.visibility]
-                        )
-                if holistic_results.left_hand_landmarks:
-                    for landmark in holistic_results.left_hand_landmarks.landmark:
-                        holistic_keypoints['left_hand'].append(
-                            [landmark.x, landmark.y, landmark.z, landmark.visibility]
-                        )
-                if holistic_results.right_hand_landmarks:
-                    for landmark in holistic_results.right_hand_landmarks.landmark:
-                        holistic_keypoints['right_hand'].append(
-                            [landmark.x, landmark.y, landmark.z, landmark.visibility]
-                        )
-                holistic_keypoints_list.append(holistic_keypoints)
+            holistic_keypoints_list = []
 
-        np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", holistic_keypoints_list)
+            while True:
+                opened, image = cap.read()
+                if not opened:
+                    break
 
-    cap.release()
+                image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                holistic_results = holistic.process(image_rgb)
 
-def working_threads(SELECT_MODEL):
-    executor = ThreadPoolExecutor(WORKERS)
-    futures = []
+                if (holistic_results.face_landmarks or
+                    holistic_results.left_hand_landmarks or
+                    holistic_results.right_hand_landmarks or
+                    holistic_results.pose_landmarks):
 
-    if SELECT_MODEL == "pose":
-        extract_method = extract_pose_keypoints
-    elif SELECT_MODEL == "holistic":
-        extract_method = extract_holistic_keypoints
-    else:
-        raise ValueError("Invalid model")
-    
-    for filename in tqdm(os.listdir(SOURCE_PATH), total=len(os.listdir(SOURCE_PATH))):
-        full_filename = os.path.join(SOURCE_PATH, filename)
-        future = executor.submit(extract_method, full_filename, DEST_PATH)
-        futures.append(future)
+                    holistic_keypoints = {'face': [],
+                                          'left_hand': [],
+                                          'right_hand': [],
+                                          'pose': []}
 
-    print(f"{SELECT_MODEL} - File listup finish.. threads start..")
+                    if holistic_results.pose_landmarks:
+                        for landmark in holistic_results.pose_landmarks.landmark:
+                            holistic_keypoints['pose'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
 
-    for future in tqdm(futures, total=len(futures)):
-        future.result()
+                    if holistic_results.face_landmarks:
+                        for landmark in holistic_results.face_landmarks.landmark:
+                            holistic_keypoints['face'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
 
-    executor.shutdown()
+                    if holistic_results.left_hand_landmarks:
+                        for landmark in holistic_results.left_hand_landmarks.landmark:
+                            holistic_keypoints['left_hand'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
 
+                    if holistic_results.right_hand_landmarks:
+                        for landmark in holistic_results.right_hand_landmarks.landmark:
+                            holistic_keypoints['right_hand'].append(
+                                [landmark.x, landmark.y, landmark.z, landmark.visibility]
+                            )
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+                    holistic_keypoints_list.append(holistic_keypoints)
 
-    parser.add_argument('-m', '--model', type=str, required=True, help='select feature model')
-    parser.add_argument('-srce', '--source_path', type=str, required=True, help='source path')
-    parser.add_argument('-dest', '--dest_path', type=str, required=True, help='dest path')
-    parser.add_argument('-workers', '--workers', type=int, default=4, help='working threads')
+            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", holistic_keypoints_list)
 
-    args = parser.parse_args()
+        cap.release()
 
-    SELECT_MODEL = args.model
-    SOURCE_PATH = args.source_path
-    DEST_PATH = args.dest_path
-    WORKERS = args.workers
+    def working_threads(self, model="pose"):
+        executor = ThreadPoolExecutor(max_workers=4)
+        futures = []
 
-    working_threads(SELECT_MODEL)
+        if model == "pose":
+            extract_method = self.extract_pose_keypoints
+        elif model == "holistic":
+            extract_method = self.extract_holistic_keypoints
+        else:
+            raise ValueError("Invalid model")
+
+        for filename in tqdm(os.listdir(self.source_path), total=len(os.listdir(self.source_path))):
+            full_filename = os.path.join(self.source_path, filename)
+            future = executor.submit(extract_method, full_filename, self.dest_path)
+            futures.append(future)
+
+        print(f"{model} - File listup finish.. threads start..")
+
+        for future in tqdm(futures, total=len(futures)):
+            future.result()
+
+        executor.shutdown()
