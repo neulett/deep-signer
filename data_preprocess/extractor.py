@@ -1,21 +1,23 @@
 import os
 import cv2
-import mediapipe as mp
+import argparse
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
+import mediapipe as mp
+
 from tqdm.auto import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 class Models:
-    def __init__(self, source_path, dest_path):
-        self.source_path = source_path
-        self.dest_path = dest_path
+    def __init__(self):
+        self.pose_keypoints = []
+        self.pose_keypoints_list = []
+        self.holistic_keypoints_list = []
 
     def extract_pose_keypoints(self, filename, dest_path):
         mp_pose = mp.solutions.pose
         cap = cv2.VideoCapture(filename)
 
         with mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
-            pose_keypoints_list = []
 
             while True:
                 opened, image = cap.read()
@@ -26,22 +28,20 @@ class Models:
                 pose_results = pose.process(image_rgb)
 
                 if pose_results.pose_landmarks:
-                    pose_keypoints = []
                     for landmark in pose_results.pose_landmarks.landmark:
-                        pose_keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
-                    pose_keypoints_list.append(pose_keypoints)
+                        self.pose_keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
+                    self.pose_keypoints_list.append(self.pose_keypoints)
 
-            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", pose_keypoints_list)
+            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", self.pose_keypoints_list)
 
         cap.release()
 
-    def extract_holistic_keypoints(self, filename, dest_path):
+    def extract_holistic_keypoints(self, filename):
         mp_holistic = mp.solutions.holistic
         cap = cv2.VideoCapture(filename)
 
         with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
 
-            holistic_keypoints_list = []
 
             while True:
                 opened, image = cap.read()
@@ -85,31 +85,46 @@ class Models:
                                 [landmark.x, landmark.y, landmark.z, landmark.visibility]
                             )
 
-                    holistic_keypoints_list.append(holistic_keypoints)
+                    self.holistic_keypoints_list.append(holistic_keypoints)
 
-            np.save(f"{dest_path}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", holistic_keypoints_list)
+            np.save(f"{DEST}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", self.holistic_keypoints_list)
 
         cap.release()
 
-    def working_threads(self, model="pose"):
+    def working_threads(self):
         executor = ThreadPoolExecutor(max_workers=4)
         futures = []
 
-        if model == "pose":
+        if MODEL == "pose":
             extract_method = self.extract_pose_keypoints
-        elif model == "holistic":
+        elif MODEL == "holistic":
             extract_method = self.extract_holistic_keypoints
         else:
-            raise ValueError("Invalid model")
+            raise ValueError("Invalid Model")
 
-        for filename in tqdm(os.listdir(self.source_path), total=len(os.listdir(self.source_path))):
-            full_filename = os.path.join(self.source_path, filename)
-            future = executor.submit(extract_method, full_filename, self.dest_path)
+        for filename in tqdm(os.listdir(SOURCE), total=len(os.listdir(SOURCE))):
+            full_filename = os.path.join(SOURCE, filename)
+            future = executor.submit(extract_method, full_filename, DEST)
             futures.append(future)
 
-        print(f"{model} - File listup finish.. threads start..")
+        print(f"{MODEL} - File listup finish.. threads start..")
 
         for future in tqdm(futures, total=len(futures)):
             future.result()
 
         executor.shutdown()
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-model', '--model', default='pose', type=str)
+    parser.add_argument('-src', '--source', default='', type=str)
+    parser.add_argument('-dest', '--dest', default='', type=str)
+    parser.add_argument('')
+    args = parser.parse_args()
+
+    MODEL = args.model
+    SOURCE = args.source
+    DEST = args.dest
+
+    instance = Models()
+    instance.working_threads()
