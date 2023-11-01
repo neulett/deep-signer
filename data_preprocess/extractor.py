@@ -7,7 +7,7 @@ import mediapipe as mp
 from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-class Models:
+class Engine:
     def __init__(self):
         self.pose_keypoints = []
         self.pose_keypoints_list = []
