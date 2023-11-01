@@ -97,26 +97,44 @@ class Models:
 
         cap.release()
 
-    def working_threads(self):
-        if MODEL == "pose":
-            self.extract_pose_keypoints()
-        elif MODEL == "holistic":
-            self.extract_holistic_keypoints()
-        else:
-            raise ValueError("Invalid Model")
+    def working_threads(self, model="pose"):
+        executor = ThreadPoolExecutor(max_workers=WORKERS)
+        futures = []
 
+        if model == "pose":
+            print(f"Select Model : {MODEL}")
+            for filename in tqdm(os.listdir(SOURCE), total=len(os.listdir(SOURCE))):
+                full_filename = os.path.join(SOURCE, filename)
+                future = executor.submit(self.extract_pose_keypoints, full_filename, DEST)
+                futures.append(future)
+
+            for future in tqdm(futures, total=len(futures)):
+                future.result()
+
+        elif model == "holistic":
+            print(f"Select Model : {MODEL}")
+            for filename in tqdm(os.listdir(SOURCE), total=len(os.listdir(SOURCE))):
+                full_filename = os.path.join(SOURCE, filename)
+                future = executor.submit(self.extract_holistic_keypoints, full_filename, DEST)
+                futures.append(future)
+
+            for future in tqdm(futures, total=len(futures)):
+                future.result()
+        else:
+            raise ValueError("Invalid model")
+        
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-model', '--model', default='pose', type=str)
     parser.add_argument('-src', '--source', default='../video/padded_source', type=str)
     parser.add_argument('-dest', '--dest', default='../keypoints', type=str)
-    # parser.add_argument('-workers', '--workers', default=4, type=int)
+    parser.add_argument('-workers', '--workers', default=4, type=int)
     args = parser.parse_args()
 
     MODEL = args.model
     SOURCE = args.source
     DEST = args.dest
-    # WORKERS = args.workers
+    WORKERS = args.workers
 
     instance = Models()
     instance.working_threads()
