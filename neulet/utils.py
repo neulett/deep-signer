@@ -12,15 +12,30 @@ class utils:
     def __init__(self):
         self.keypoints = []
         self.keypoints_list = []
+        opts = self.open_settings_yaml()
+
+        self.MODEL = opts['setting']['model']
+        self.HEIGHT = opts['setting']['height']
+        self.WIDTH = opts['setting']['width']
+        self.FPS = opts['setting']['fps']
+        self.WORKERS = opts['setting']['workers']
+        self.FEATURE_SAVE_PATH = opts['setting']['keypoints_path']
+        self.SOURCE_SAVE_PATH = opts['setting']['src_path']
+        self.PADDED_SAVE_PATH = opts['setting']['padded_path']
+        
+    def open_settings_yaml(self, path='../command.yaml'):
+        with open(path) as f:
+            opts = yaml.load(f, Loader=yaml.FullLoader)
+            print(opts)
 
     def extract_keypoints(self):
-        for filename in tqdm(os.listdir(SOURCE), total=len(os.listdir(SOURCE))):
-            full_filename = os.path.join(SOURCE, filename)
+        for filename in tqdm(os.listdir(self.SOURCE_SAVE_PATH), total=len(os.listdir(self.SOURCE_SAVE_PATH))):
+            full_filename = os.path.join(self.SOURCE_SAVE_PATH, filename)
             cap = cv2.VideoCapture(full_filename)
 
-            if model == "pose":
+            if self.MODEL == "pose":
                 solution = mp.solutions.pose
-            elif model == "holistic":
+            elif self.MODEL == "holistic":
                 solution = mp.solutions.holistic
             else:
                 raise ValueError("Invalid Model")
@@ -35,14 +50,14 @@ class utils:
                     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
                     results = pose.process(image_rgb)
 
-                    if model == "pose" and results.pose_landmarks:
+                    if self.MODEL == "pose" and results.pose_landmarks:
                         for landmark in results.pose_landmarks.landmark:
                             self.keypoints.append([landmark.x, landmark.y, landmark.z, landmark.visibility])
                         self.keypoints_list.append(self.keypoints)
 
-                        np.save(f"{DEST}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", self.keypoints_list) 
+                        np.save(f"{self.FEATURE_SAVE_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_pose.npy", self.keypoints_list) 
 
-                    elif model == "holistic" and (results.face_landmarks or
+                    elif self.MODEL == "holistic" and (results.face_landmarks or
                                                   results.left_hand_landmarks or
                                                   results.right_hand_landmarks or
                                                   results.pose_landmarks):
@@ -76,6 +91,6 @@ class utils:
                                 ])
 
                         self.keypoints_list.append(keypoints)
-                        np.save(f"{DEST}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", self.keypoints_list)
+                        np.save(f"{self.FEATURE_SAVE_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", self.keypoints_list)
 
                 cap.release()
