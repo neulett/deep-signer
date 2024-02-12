@@ -14,14 +14,15 @@ class Utils:
         self.keypoints_list = []
         opts = self.open_settings_yaml()
 
-        self.MODEL = opts['setting']['model']
-        self.HEIGHT = opts['setting']['height']
-        self.WIDTH = opts['setting']['width']
-        self.FPS = opts['setting']['fps']
-        self.WORKERS = opts['setting']['workers']
-        self.FEATURE_SAVE_PATH = opts['setting']['keypoints_path']
-        self.SOURCE_SAVE_PATH = opts['setting']['src_path']
-        self.PADDED_SAVE_PATH = opts['setting']['padded_path']
+        self.WORKTYPE = opts['base_settings']['worktype']
+        self.MODEL = opts['extract_settings']['model']
+        self.HEIGHT = opts['extract_settings']['height']
+        self.WIDTH = opts['extract_settings']['width']
+        self.FPS = opts['extract_settings']['fps']
+        self.WORKERS = opts['extract_settings']['workers']
+        self.FEATURE_SAVE_PATH = opts['extract_settings']['keypoints_path']
+        self.SOURCE_PATH = opts['extract_settings']['src_path']
+        self.PADDED_SAVE_PATH = opts['extract_settings']['padded_path']
         
     @classmethod
     def open_settings_yaml(self, path='../command.yaml'):
@@ -30,8 +31,8 @@ class Utils:
             print(opts)
 
     def extract_keypoints(self):
-        for filename in tqdm(os.listdir(self.SOURCE_SAVE_PATH), total=len(os.listdir(self.SOURCE_SAVE_PATH))):
-            full_filename = os.path.join(self.SOURCE_SAVE_PATH, filename)
+        for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
+            full_filename = os.path.join(self.SOURCE_PATH, filename)
             cap = cv2.VideoCapture(full_filename)
 
             if self.MODEL == "pose":
@@ -95,3 +96,58 @@ class Utils:
                         np.save(f"{self.FEATURE_SAVE_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", self.keypoints_list)
 
                 cap.release()
+
+    def get_max_duration(self):
+        for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
+            full_filename = os.path.join(self.SOURCE_PATH, filename)
+            cap = cv2.VideoCapture(full_filename)
+            duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
+
+            if duration >= self.max_duration:
+                self.max_duration = duration
+                max_file = filename
+
+        print(f"Max duration - {self.max_duration} sec - {max_file}")
+        return self.max_duration
+    
+    def processing_padding_src(self, filename):
+        file_path = os.path.join(self.SOURCE_PATH, filename)
+        cap = cv2.VideoCapture(file_path)
+        output_path = os.path.join(self.PADDED_SAVE_PATH, filename)
+        fourcc = cv2.VideoWriter.fourcc(*'mp4v')
+        output = cv2.VideoWriter(output_path, fourcc, self.FPS, (self.HEIGHT, self.WIDTH))
+
+        current_duration =  math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
+        target_padding_frame = self.max_duration - current_duration
+
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            frame = cv2.resize(frame, (self.HEIGHT, self.WIDTH))
+            output.write(frame)
+
+        for _ in range(target_padding_frame):
+            output.write(frame)
+        
+        cap.release()
+        output.release()
+    
+    def run_threads(self):
+        if self.WORKTYPE == 'padding':
+            solution = self.processing_padding_src
+        elif self.WORKTYPE == 'extract':
+            solution = self.extract_keypoints
+        else:
+            raise ValueError("Invalid Worktype. please, check worktype in yaml.")
+            
+        executor = ThreadPoolExecutor(max_workers=self.WORKERS)
+        futures = []
+
+        for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
+            future = executor.submit(solution, filename)
+            futures.append(future)
+
+        for future in tqdm(futures, total=len(futures)):
+            future.result()
