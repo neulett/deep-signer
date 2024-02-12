@@ -1,0 +1,14 @@
+base_settings:
+  worktype: 'padding'
+# padding / extract
+extract_settings:
+  model: 'pose'
+  height: 800
+  width: 600
+  fps: 30
+  workers: 10
+
+path:
+  keypoints_path: './local/keypoints'
+  src_path: './local/source'
+  padded_path: './local/pad_source'
