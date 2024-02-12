@@ -8,7 +8,7 @@ import mediapipe as mp
 from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor
 
-class utils:
+class Utils:
     def __init__(self):
         self.keypoints = []
         self.keypoints_list = []
@@ -23,6 +23,7 @@ class utils:
         self.SOURCE_SAVE_PATH = opts['setting']['src_path']
         self.PADDED_SAVE_PATH = opts['setting']['padded_path']
         
+    @classmethod
     def open_settings_yaml(self, path='../command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
