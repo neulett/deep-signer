@@ -28,7 +28,7 @@ class Utils:
     def open_settings_yaml(self, path='../command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
-            print(opts)
+            return opts
 
     def extract_keypoints(self):
         for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
