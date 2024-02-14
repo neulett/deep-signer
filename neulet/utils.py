@@ -13,36 +13,33 @@ class Utils:
         self.keypoints = []
         self.keypoints_list = []
         opts = self.open_settings_yaml()
-
         self.WORKTYPE = opts['base_settings']['worktype']
         self.MODEL = opts['extract_settings']['model']
         self.HEIGHT = opts['extract_settings']['height']
         self.WIDTH = opts['extract_settings']['width']
         self.FPS = opts['extract_settings']['fps']
         self.WORKERS = opts['extract_settings']['workers']
-        self.FEATURE_SAVE_PATH = opts['extract_settings']['keypoints_path']
-        self.SOURCE_PATH = opts['extract_settings']['src_path']
-        self.PADDED_SAVE_PATH = opts['extract_settings']['padded_path']
+        self.FEATURE_SAVE_PATH = opts['path']['keypoints_path']
+        self.SOURCE_PATH = opts['path']['src_path']
+        self.PADDED_SAVE_PATH = opts['path']['padded_path']
         
     @classmethod
-    def open_settings_yaml(self, path='../command.yaml'):
+    def open_settings_yaml(self, path='./command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
             return opts
 
-    def extract_keypoints(self):
-        for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
-            full_filename = os.path.join(self.SOURCE_PATH, filename)
-            cap = cv2.VideoCapture(full_filename)
+    def extract_keypoints(self, filename):
+        full_filename = os.path.join(self.PADDED_SAVE_PATH, filename)
+        cap = cv2.VideoCapture(full_filename)
 
-            if self.MODEL == "pose":
-                solution = mp.solutions.pose
-            elif self.MODEL == "holistic":
-                solution = mp.solutions.holistic
-            else:
-                raise ValueError("Invalid Model")
-
-            with solution(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
+        if self.MODEL == "pose":
+            solution = mp.solutions.pose.Pose
+        elif self.MODEL == "holistic":
+            solution = mp.solutions.holistic.Holistic
+        else:
+            raise ValueError("Invalid Model")
+        with solution(min_detection_confidence=0.5, min_tracking_confidence=0.5) as pose:
 
                 while True:
                     opened, image = cap.read()
@@ -97,15 +94,14 @@ class Utils:
 
                 cap.release()
 
-    def get_max_duration(self):
-        for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
-            full_filename = os.path.join(self.SOURCE_PATH, filename)
-            cap = cv2.VideoCapture(full_filename)
-            duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
+    def get_max_duration(self, filename):
+        full_filename = os.path.join(self.SOURCE_PATH, filename)
+        cap = cv2.VideoCapture(full_filename)
+        duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
 
-            if duration >= self.max_duration:
-                self.max_duration = duration
-                max_file = filename
+        if duration >= self.max_duration:
+            self.max_duration = duration
+            max_file = filename
 
         print(f"Max duration - {self.max_duration} sec - {max_file}")
         return self.max_duration
@@ -133,21 +129,18 @@ class Utils:
         
         cap.release()
         output.release()
-    
-    def run_threads(self):
+
+    def run_threads_ray(self):
         if self.WORKTYPE == 'padding':
             solution = self.processing_padding_src
         elif self.WORKTYPE == 'extract':
             solution = self.extract_keypoints
         else:
             raise ValueError("Invalid Worktype. please, check worktype in yaml.")
-            
-        executor = ThreadPoolExecutor(max_workers=self.WORKERS)
-        futures = []
 
         for filename in tqdm(os.listdir(self.SOURCE_PATH), total=len(os.listdir(self.SOURCE_PATH))):
-            future = executor.submit(solution, filename)
-            futures.append(future)
+            solution(filename)
 
-        for future in tqdm(futures, total=len(futures)):
-            future.result()
+if __name__ == '__main__':
+    instance = Utils()
+    instance.run_threads_ray()
