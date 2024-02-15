@@ -3,8 +3,10 @@ import cv2
 import ray
 import math
 import yaml
+import pyautogui
 import numpy as np
 import mediapipe as mp
+import clipboard as  cb
 
 from tqdm.auto import tqdm
 from concurrent.futures import ThreadPoolExecutor
@@ -25,10 +27,16 @@ class Utils:
         self.PADDED_SAVE_PATH = opts['path']['padded_path']
         
     @classmethod
-    def open_settings_yaml(self, path='../command.yaml'):
+    def open_settings_yaml(self, path='./command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
             return opts
+        
+    @classmethod
+    def get_clipboard_data():
+        pyautogui.hotkey("ctrl", "c")
+        texts = cb.paste()
+        print(texts)
 
     @ray.remote
     def extract_keypoints(self, filename):
@@ -95,18 +103,7 @@ class Utils:
                             np.save(f"{self.FEATURE_SAVE_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_holistic.npy", self.keypoints_list)
 
                     cap.release()
-
-    def get_max_duration(self, filename):
-        full_filename = os.path.join(self.SOURCE_PATH, filename)
-        cap = cv2.VideoCapture(full_filename)
-        duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
-
-        if duration >= self.max_duration:
-            self.max_duration = duration
-            max_file = filename
-
-        print(f"Max duration - {self.max_duration} sec - {max_file}")
-        return self.max_duration
+    
     @ray.remote
     def processing_padding_src(self, filename):
         file_path = os.path.join(self.SOURCE_PATH, filename)
@@ -131,6 +128,18 @@ class Utils:
         
         cap.release()
         output.release()
+
+    def get_max_duration(self, filename):
+        full_filename = os.path.join(self.SOURCE_PATH, filename)
+        cap = cv2.VideoCapture(full_filename)
+        duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
+
+        if duration >= self.max_duration:
+            self.max_duration = duration
+            max_file = filename
+
+        print(f"Max duration - {self.max_duration} sec - {max_file}")
+        return self.max_duration
 
     def run_threads_ray(self):
         if self.WORKTYPE == 'padding':
