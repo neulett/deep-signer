@@ -8,6 +8,7 @@ import numpy as np
 import tkinter as tk
 import mediapipe as mp
 import clipboard as  cb
+import customtkinter as ctk 
 
 from tqdm.auto import tqdm
 from PIL import Image, ImageTk
@@ -35,10 +36,17 @@ class Utils:
             return opts
         
     @classmethod
-    def get_clipboard_data(self, label):
+    def get_clipboard_data(self):
         pyautogui.hotkey("ctrl", "c")
         texts = cb.paste()
         print(texts)
+        return texts
+
+    @classmethod
+    def change_label_text(self):
+        texts = self.get_clipboard_data()
+        variable_text = ctk.StringVar()
+        variable_text.set(texts)
 
     @ray.remote
     def extract_keypoints(self, filename):
@@ -254,15 +262,6 @@ class Drawing:
             root.after(30)
 
         cv2.destroyAllWindows()
-class Generator:
-    def ImageButton_Generator(img_path, target_size, target_frame, w, h, active_bg, bg):
-        source = Image.open(img_path)
-        source = source.resize(target_size)
-        img = ImageTk.PhotoImage(source)
-        btn = tk.Button(target_frame, image=img, relief='flat', width=w, height=h, activebackground=active_bg, bg=bg)
-        btn.image = img
-        return btn
-
 
 if __name__ == '__main__':
     instance = Utils()
