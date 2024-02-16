@@ -3,6 +3,8 @@ import cv2
 import ray
 import math
 import yaml
+import signal
+import keyboard
 import pyautogui
 import numpy as np
 import tkinter as tk
@@ -30,23 +32,24 @@ class Utils:
         self.PADDED_SAVE_PATH = opts['path']['padded_path']
         
     @classmethod
-    def open_settings_yaml(self, path='./command.yaml'):
+    def open_settings_yaml(self, path='../command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
             return opts
-        
+
     @classmethod
     def get_clipboard_data(self):
-        pyautogui.hotkey("ctrl", "c")
+        # pyautogui.hotkey("ctrl", "c") # auto event handler
+        texts = "입력된 텍스트"
         texts = cb.paste()
         print(texts)
         return texts
 
     @classmethod
-    def change_label_text(self):
+    def change_label(self, target_label):
+        texts = ctk.StringVar()
         texts = self.get_clipboard_data()
-        variable_text = ctk.StringVar()
-        variable_text.set(texts)
+        target_label.configure(text=texts)
 
     @ray.remote
     def extract_keypoints(self, filename):
