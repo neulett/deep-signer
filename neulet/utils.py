@@ -30,9 +30,10 @@ class Utils:
         self.FEATURE_SAVE_PATH = opts['path']['keypoints_path']
         self.SOURCE_PATH = opts['path']['src_path']
         self.PADDED_SAVE_PATH = opts['path']['padded_path']
+        self.PAD_KEYPOINTS_PATH = opts['path']['pad_keypoints_path']
         
     @classmethod
-    def open_settings_yaml(self, path='../command.yaml'):
+    def open_settings_yaml(self, path='./command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
             return opts
@@ -50,6 +51,32 @@ class Utils:
         texts = ctk.StringVar()
         texts = self.get_clipboard_data()
         target_label.configure(text=texts)
+
+    def get_max_video_duration(self, filename):
+        full_filename = os.path.join(self.SOURCE_PATH, filename)
+        cap = cv2.VideoCapture(full_filename)
+        duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
+
+        if duration >= self.max_duration:
+            self.max_duration = duration
+            max_file = filename
+
+        print(f"Max duration - {self.max_duration} sec - {max_file}")
+        return self.max_duration
+    
+    def get_max_array_duration(self, filename):
+        max_height = 0
+        max_width = 0
+
+        array = np.load(os.path.join(self.keypoints_path, filename))
+        height, width = array[:2]
+        if height >= max_height:
+            max_height = height
+        elif width >= max_width:
+            max_width = width
+
+        print(f"Max_height : {max_height}\nMax_Width : {max_width}")
+        return max_height, max_width
 
     @ray.remote
     def extract_keypoints(self, filename):
@@ -119,6 +146,7 @@ class Utils:
     
     @ray.remote
     def processing_padding_src(self, filename):
+        self.max_duration = self.get_max_video_duration()
         file_path = os.path.join(self.SOURCE_PATH, filename)
         cap = cv2.VideoCapture(file_path)
         output_path = os.path.join(self.PADDED_SAVE_PATH, filename)
@@ -142,23 +170,31 @@ class Utils:
         cap.release()
         output.release()
 
-    def get_max_duration(self, filename):
-        full_filename = os.path.join(self.SOURCE_PATH, filename)
-        cap = cv2.VideoCapture(full_filename)
-        duration = math.ceil(cap.get(cv2.CAP_PROP_FRAME_COUNT) // cap.get(cv2.CAP_PROP_FPS))
+    @ray.remote
+    def pad_array(self, filename):
+        padded_arr = []
+        max_height, max_width = self.get_max_array_duration()
+        
+        array = np.load(os.path.join(self.FEATURE_SAVE_PATH, filename))
+        array_shape = array.shape
+        height, width = array_shape.shape[:2]
 
-        if duration >= self.max_duration:
-            self.max_duration = duration
-            max_file = filename
+        target_height = max_height - height
+        target_width = max_width - width
+        target_pad = ((0, target_height), (0, target_width), (0, 0))
+        padded_array = np.pad(array, target_pad, mode='constant')
+        padded_arr.append(padded_array)
 
-        print(f"Max duration - {self.max_duration} sec - {max_file}")
-        return self.max_duration
+        np.save(f"{self.PAD_KEYPOINTS_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_pad.npy", padded_arr)
+        del padded_arr
 
     def run_threads_ray(self):
-        if self.WORKTYPE == 'padding':
+        if self.WORKTYPE == 'pad_video':
             solution = self.processing_padding_src
         elif self.WORKTYPE == 'extract':
             solution = self.extract_keypoints
+        elif self.WORKTYPE == 'pad_array':
+            solution = self.pad_array
         else:
             raise ValueError("Invalid Worktype. please, check worktype in yaml.")
         
