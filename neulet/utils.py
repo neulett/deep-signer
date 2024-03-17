@@ -3,15 +3,12 @@ import cv2
 import ray
 import math
 import yaml
-import signal
-import keyboard
-import pyautogui
 import numpy as np
 import tkinter as tk
 import mediapipe as mp
 import clipboard as  cb
 import customtkinter as ctk 
-
+import win32clipboard as wcb
 from tqdm.auto import tqdm
 from PIL import Image, ImageTk
 from concurrent.futures import ThreadPoolExecutor
@@ -40,10 +37,9 @@ class Utils:
 
     @classmethod
     def get_clipboard_data(self):
-        # pyautogui.hotkey("ctrl", "c") # auto event handler
-        texts = "입력된 텍스트"
-        texts = cb.paste()
-        print(texts)
+        wcb.OpenClipboard()
+        texts = wcb.GetClipboardData()
+        wcb.CloseClipboard()
         return texts
 
     @classmethod
