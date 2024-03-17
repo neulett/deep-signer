@@ -27,10 +27,11 @@ class Utils:
         self.FEATURE_SAVE_PATH = opts['path']['keypoints_path']
         self.SOURCE_PATH = opts['path']['src_path']
         self.PADDED_SAVE_PATH = opts['path']['padded_path']
-        self.PAD_KEYPOINTS_PATH = opts['path']['pad_keypoints_path']
+        self.PAD_KEYPOINTS_PATH = opts['path']['padded_keypoints_path']
+        self.max_duration = 0
         
     @classmethod
-    def open_settings_yaml(self, path='./command.yaml'):
+    def open_settings_yaml(self, path='./local/command.yaml'):
         with open(path) as f:
             opts = yaml.load(f, Loader=yaml.FullLoader)
             return opts
@@ -142,7 +143,7 @@ class Utils:
     
     @ray.remote
     def processing_padding_src(self, filename):
-        self.max_duration = self.get_max_video_duration()
+        self.max_duration = self.get_max_video_duration(filename)
         file_path = os.path.join(self.SOURCE_PATH, filename)
         cap = cv2.VideoCapture(file_path)
         output_path = os.path.join(self.PADDED_SAVE_PATH, filename)
@@ -184,7 +185,7 @@ class Utils:
         np.save(f"{self.PAD_KEYPOINTS_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_pad.npy", padded_arr)
         del padded_arr
 
-    def ray_runner(self, solution):
+    def ray_runner(self):
         ray.init(num_cpus=self.WORKERS)  
         futures = []
 
