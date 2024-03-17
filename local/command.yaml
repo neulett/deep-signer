@@ -10,5 +10,6 @@ extract_settings:
 
 path:
   keypoints_path: './local/keypoints'
+  padded_keypoints_path: './local/padded_keypoints'
   src_path: './local/source'
   padded_path: './local/pad_source'
