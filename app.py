@@ -22,7 +22,7 @@ def ImageButton_Generator(img_path, target_size, target_frame, w, h, active_bg, 
     return btn
 
 def keyboard_event_handler():
-    keyboard.add_hotkey('ctrl+c', Utils.change_label_text(detected_label))
+    keyboard.add_hotkey('ctrl+c', Utils.change_label(detected_label))
     root.after(1000, keyboard_event_handler)
 
 # App Main
