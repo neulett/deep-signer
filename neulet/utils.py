@@ -304,4 +304,4 @@ class Drawing:
 
 if __name__ == '__main__':
     instance = Utils()
-    instance.run_threads_ray()
+    instance.ray_runner()
