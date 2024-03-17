@@ -184,24 +184,28 @@ class Utils:
         np.save(f"{self.PAD_KEYPOINTS_PATH}/{os.path.splitext(os.path.basename(filename))[0]}_pad.npy", padded_arr)
         del padded_arr
 
-    def run_threads_ray(self):
-        if self.WORKTYPE == 'pad_video':
-            solution = self.processing_padding_src
-        elif self.WORKTYPE == 'extract':
-            solution = self.extract_keypoints
-        elif self.WORKTYPE == 'pad_array':
-            solution = self.pad_array
-        else:
-            raise ValueError("Invalid Worktype. please, check worktype in yaml.")
-        
+    def ray_runner(self, solution):
         ray.init(num_cpus=self.WORKERS)  
         futures = []
 
-        for filename in os.listdir(self.SOURCE_PATH):
+        if self.WORKTYPE == 'pad_video':
+            solution = self.processing_padding_src
+            paths_ = self.SOURCE_PATH
+        elif self.WORKTYPE == 'extract':
+            solution = self.extract_keypoints
+            paths_ = self.PADDED_SAVE_PATH
+        elif self.WORKTYPE == 'pad_array':
+            solution = self.pad_array
+            paths_ = self.FEATURE_SAVE_PATH
+        else:
+            raise ValueError("Invalid Worktype. please, check worktype in yaml.")
+
+        for filename in os.listdir(paths_):
             futures.append(solution.remote(self, filename))
 
         ray.get(futures)  
         ray.shutdown()
+        
 
 class Drawing:
     def visualize_canvas(self, target_canvas, image):  # draw keypoints on tkinter canvas
